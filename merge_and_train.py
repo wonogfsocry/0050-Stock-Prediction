@@ -69,6 +69,13 @@ df['前1日收盤價'] = df['收盤價'].shift(1)
 df['前1日成交股數'] = df['成交股數'].shift(1)
 
 # ★ 3. 核心優化：將絕對數值轉換為「相對特徵」 ★
+# 日報酬率 (昨日到今日的漲跌幅)
+df['日報酬率'] = (df['收盤價'] - df['前1日收盤價']) / df['前1日收盤價']
+
+# 歷史平移特徵：加入前天與大前天的日報酬率
+df['前1日日報酬率'] = df['日報酬率'].shift(1)
+df['前2日日報酬率'] = df['日報酬率'].shift(2)
+
 # MA5 乖離率 (衡量當前股價是否偏離 5日均線太多，捕捉均值回歸)
 df['MA5乖離率'] = (df['收盤價'] - df['MA5']) / df['MA5']
 
@@ -81,21 +88,39 @@ df['振幅'] = (df['最高價'] - df['最低價']) / df['前1日收盤價']
 # 成交量變化率 (衡量是否爆量或量縮)
 df['成交量變化率'] = (df['成交股數'] - df['前1日成交股數']) / df['前1日成交股數']
 
+# RSI(14)：動能與超買超賣指標
+price_delta = df['收盤價'].diff()
+gain = price_delta.clip(lower=0)
+loss = -price_delta.clip(upper=0)
+avg_gain = gain.rolling(window=14).mean()
+avg_loss = loss.rolling(window=14).mean()
+rs = avg_gain / avg_loss
+df['RSI14'] = 100 - (100 / (1 + rs))
+
+# 5日波動率：過去 5 天日報酬率標準差
+df['5日波動率'] = df['日報酬率'].rolling(window=5).std()
+
 # 4. 重新命名欄位
 column_mapping = {
     '日期': 'date',
+    '日報酬率': 'daily_return',
+    '前1日日報酬率': 'daily_return_lag1',
+    '前2日日報酬率': 'daily_return_lag2',
     'MA5乖離率': 'ma5_bias',
     'K線實體': 'kline_body',
     '振幅': 'amplitude',
     '成交量變化率': 'vol_change',
+    'RSI14': 'rsi_14',
+    '5日波動率': 'volatility_5d',
     'Target': 'target',
 }
 df = df.rename(columns=column_mapping)
 
 # 5. 挑選最終特徵 (★ 丟棄原本的開高低收等絕對數值 ★)
 features_to_keep = [
-    'date', 'ma5_bias', 'kline_body', 
-    'amplitude', 'vol_change', 'target'
+    'date', 'daily_return', 'daily_return_lag1', 'daily_return_lag2',
+    'ma5_bias', 'kline_body', 'amplitude', 'vol_change',
+    'rsi_14', 'volatility_5d', 'target'
 ]
 df_final = df[features_to_keep].dropna().copy()
 
