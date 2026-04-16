@@ -8,9 +8,8 @@ from pathlib import Path
 # 1. 讀取資料
 df = pd.read_csv('0050_cleaned_data_5years.csv')
 
-# 2. 定義特徵 (X) 與 目標 (y)
+# 2. 定義特徵 (X) 與 目標 (y)，要注意daily_return不能作為特徵(直接報露答案)
 feature_columns = [
-	'daily_return',
 	'daily_return_lag1',
 	'daily_return_lag2',
 	'ma5_bias',
@@ -28,9 +27,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # 4. 初始化決策樹模型
 clf = DecisionTreeClassifier(
-    max_depth=6,
-    min_samples_split=15,
-    min_samples_leaf=7,
+    max_depth=8,
+    min_samples_split=20,
+    min_samples_leaf=10,
     random_state=42
 )
 
