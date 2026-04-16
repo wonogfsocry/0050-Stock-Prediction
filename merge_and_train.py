@@ -60,39 +60,53 @@ df = df.sort_values('日期').reset_index(drop=True)
 # 特徵工程 (特徵必須在排序後才能計算)
 # ====================
 
-# 建立預測目標 (Target)
+# 1. 建立預測目標 (Target)
 df['Target'] = (df['收盤價'].shift(-1) > df['收盤價']).astype(int)
 
-# 建立歷史特徵
-df['前1日收盤價'] = df['收盤價'].shift(1)
-df['前2日收盤價'] = df['收盤價'].shift(2)
+# 2. 建立歷史基礎指標 (供後續計算使用)
 df['MA5'] = df['收盤價'].rolling(window=5).mean()
+df['前1日收盤價'] = df['收盤價'].shift(1)
+df['前1日成交股數'] = df['成交股數'].shift(1)
 
-# 將欄位統一轉為英文命名
+# ★ 3. 核心優化：將絕對數值轉換為「相對特徵」 ★
+# 日報酬率 (昨日到今日的漲跌幅)
+df['日報酬率'] = (df['收盤價'] - df['前1日收盤價']) / df['前1日收盤價']
+
+# MA5 乖離率 (衡量當前股價是否偏離 5日均線太多，捕捉均值回歸)
+df['MA5乖離率'] = (df['收盤價'] - df['MA5']) / df['MA5']
+
+# K線實體長度 (今日收盤與開盤的差距，代表當日多空力道)
+df['K線實體'] = (df['收盤價'] - df['開盤價']) / df['開盤價']
+
+# 振幅 (今日最高與最低的差距，衡量波動度)
+df['振幅'] = (df['最高價'] - df['最低價']) / df['前1日收盤價']
+
+# 成交量變化率 (衡量是否爆量或量縮)
+df['成交量變化率'] = (df['成交股數'] - df['前1日成交股數']) / df['前1日成交股數']
+
+# 4. 重新命名欄位
 column_mapping = {
     '日期': 'date',
-    '成交股數': 'trading_volume_shares',
-    '成交金額': 'trading_value',
-    '開盤價': 'open_price',
-    '最高價': 'high_price',
-    '最低價': 'low_price',
-    '收盤價': 'close_price',
-    '漲跌價差': 'price_change',
-    '成交筆數': 'trading_count',
-    '前1日收盤價': 'prev_close_1d',
-    '前2日收盤價': 'prev_close_2d',
-    'MA5': 'ma5',
+    '日報酬率': 'daily_return',
+    'MA5乖離率': 'ma5_bias',
+    'K線實體': 'kline_body',
+    '振幅': 'amplitude',
+    '成交量變化率': 'vol_change',
     'Target': 'target',
 }
 df = df.rename(columns=column_mapping)
 
-# 捨棄因為 shift 和 rolling 產生的 NaN 值 (最前面幾天與最後一天)
-df_final = df.dropna().copy()
+# 5. 挑選最終特徵 (★ 丟棄原本的開高低收等絕對數值 ★)
+features_to_keep = [
+    'date', 'daily_return', 'ma5_bias', 'kline_body', 
+    'amplitude', 'vol_change', 'target'
+]
+df_final = df[features_to_keep].dropna().copy()
 
 print("資料準備完畢！")
 print(f"最終可用於訓練的資料筆數：{len(df_final)} 筆")
 print("\n前五筆資料檢查：")
-print(df_final[['date', 'close_price', 'prev_close_1d', 'ma5', 'target']].head())
+print(df_final.head())
 
-# 將清理好的資料存成一個新的 CSV，以後就不用每次都重新合併了
+# 存檔
 df_final.to_csv('0050_cleaned_data_5years.csv', index=False, encoding='utf-8-sig')
