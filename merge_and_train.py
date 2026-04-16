@@ -69,9 +69,6 @@ df['前1日收盤價'] = df['收盤價'].shift(1)
 df['前1日成交股數'] = df['成交股數'].shift(1)
 
 # ★ 3. 核心優化：將絕對數值轉換為「相對特徵」 ★
-# 日報酬率 (昨日到今日的漲跌幅)
-df['日報酬率'] = (df['收盤價'] - df['前1日收盤價']) / df['前1日收盤價']
-
 # MA5 乖離率 (衡量當前股價是否偏離 5日均線太多，捕捉均值回歸)
 df['MA5乖離率'] = (df['收盤價'] - df['MA5']) / df['MA5']
 
@@ -87,7 +84,6 @@ df['成交量變化率'] = (df['成交股數'] - df['前1日成交股數']) / df
 # 4. 重新命名欄位
 column_mapping = {
     '日期': 'date',
-    '日報酬率': 'daily_return',
     'MA5乖離率': 'ma5_bias',
     'K線實體': 'kline_body',
     '振幅': 'amplitude',
@@ -98,7 +94,7 @@ df = df.rename(columns=column_mapping)
 
 # 5. 挑選最終特徵 (★ 丟棄原本的開高低收等絕對數值 ★)
 features_to_keep = [
-    'date', 'daily_return', 'ma5_bias', 'kline_body', 
+    'date', 'ma5_bias', 'kline_body', 
     'amplitude', 'vol_change', 'target'
 ]
 df_final = df[features_to_keep].dropna().copy()
