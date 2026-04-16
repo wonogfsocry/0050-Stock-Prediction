@@ -16,8 +16,13 @@ y = df['target']
 # 3. 切割資料 (80% 用於訓練模型，20% 作為從未見過的測試資料)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 4. 初始化決策樹模型 (限制深度為 6 層)
-clf = DecisionTreeClassifier(max_depth=6, random_state=42)
+# 4. 初始化決策樹模型 (限制深度為 6 層，加入剪枝參數)
+clf = DecisionTreeClassifier(
+    max_depth=6,
+    min_samples_split=15,
+    min_samples_leaf=7,
+    random_state=42
+)
 
 # 讓模型從訓練資料中尋找模式 (開始學習)
 clf.fit(X_train, y_train)
