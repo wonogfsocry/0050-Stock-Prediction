@@ -16,8 +16,8 @@ y = df['target']
 # 3. 切割資料 (80% 用於訓練模型，20% 作為從未見過的測試資料)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 4. 初始化決策樹模型 (限制深度為 3 層，避免 Overfitting)
-clf = DecisionTreeClassifier(max_depth=3, random_state=42)
+# 4. 初始化決策樹模型 (限制深度為 6 層)
+clf = DecisionTreeClassifier(max_depth=6, random_state=42)
 
 # 讓模型從訓練資料中尋找模式 (開始學習)
 clf.fit(X_train, y_train)
@@ -35,14 +35,14 @@ output_dir = Path("visualizations")
 output_dir.mkdir(exist_ok=True)
 
 # 6. 視覺化：決策樹結構
-fig, ax = plt.subplots(figsize=(18, 9))
+fig, ax = plt.subplots(figsize=(28, 18))
 plot_tree(
 	clf,
 	feature_names=X.columns,
 	class_names=[str(c) for c in clf.classes_],
 	filled=True,
 	rounded=True,
-	fontsize=8,
+	fontsize=6,
 	ax=ax,
 )
 ax.set_title("Decision Tree Structure")
