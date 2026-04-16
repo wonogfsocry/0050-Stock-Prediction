@@ -61,13 +61,30 @@ df = df.sort_values('日期').reset_index(drop=True)
 # ====================
 
 # 建立預測目標 (Target)
-df['明日收盤價'] = df['收盤價'].shift(-1)
-df['Target'] = (df['明日收盤價'] > df['收盤價']).astype(int)
+df['Target'] = (df['收盤價'].shift(-1) > df['收盤價']).astype(int)
 
 # 建立歷史特徵
 df['前1日收盤價'] = df['收盤價'].shift(1)
 df['前2日收盤價'] = df['收盤價'].shift(2)
 df['MA5'] = df['收盤價'].rolling(window=5).mean()
+
+# 將欄位統一轉為英文命名
+column_mapping = {
+    '日期': 'date',
+    '成交股數': 'trading_volume_shares',
+    '成交金額': 'trading_value',
+    '開盤價': 'open_price',
+    '最高價': 'high_price',
+    '最低價': 'low_price',
+    '收盤價': 'close_price',
+    '漲跌價差': 'price_change',
+    '成交筆數': 'trading_count',
+    '前1日收盤價': 'prev_close_1d',
+    '前2日收盤價': 'prev_close_2d',
+    'MA5': 'ma5',
+    'Target': 'target',
+}
+df = df.rename(columns=column_mapping)
 
 # 捨棄因為 shift 和 rolling 產生的 NaN 值 (最前面幾天與最後一天)
 df_final = df.dropna().copy()
@@ -75,7 +92,7 @@ df_final = df.dropna().copy()
 print("資料準備完畢！")
 print(f"最終可用於訓練的資料筆數：{len(df_final)} 筆")
 print("\n前五筆資料檢查：")
-print(df_final[['日期', '收盤價', '前1日收盤價', 'MA5', '明日收盤價', 'Target']].head())
+print(df_final[['date', 'close_price', 'prev_close_1d', 'ma5', 'target']].head())
 
 # 將清理好的資料存成一個新的 CSV，以後就不用每次都重新合併了
 df_final.to_csv('0050_cleaned_data_5years.csv', index=False, encoding='utf-8-sig')

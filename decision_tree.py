@@ -9,8 +9,8 @@ from pathlib import Path
 df = pd.read_csv('0050_cleaned_data_5years.csv')
 
 # 2. 定義特徵 (X) 與 目標 (y)
-X = df.drop(columns=['日期', '漲跌價差', '明日收盤價', 'Target'])
-y = df['Target']
+X = df.drop(columns=['date', 'price_change', 'target'])
+y = df['target']
 
 # 3. 切割資料 (80% 用於訓練模型，20% 作為從未見過的測試資料)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
