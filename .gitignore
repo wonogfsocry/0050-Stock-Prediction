@@ -2,3 +2,12 @@ __pycache__/
 .env
 *.csv
 .ipynb_checkpoints/
+visualizations/
+
+# Visualization outputs (charts/figures)
+visualizations/**/*.png
+visualizations/**/*.jpg
+visualizations/**/*.jpeg
+visualizations/**/*.gif
+visualizations/**/*.webp
+visualizations/**/*.svg
