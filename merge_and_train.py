@@ -20,7 +20,7 @@ for file in file_list:
     
     all_dataframes.append(temp_df)
 
-# 3. 將這 60 個月的資料合併成一個巨大的表格
+# 3. 將這些資料合併成一個巨大的表格
 df = pd.concat(all_dataframes, ignore_index=True)
 
 print(f"合併完成！原始資料共有 {len(df)} 筆。開始進行資料清洗...")
@@ -53,7 +53,7 @@ def convert_roc_date(date_str):
 df['日期'] = df['日期'].apply(convert_roc_date)
 df['日期'] = pd.to_datetime(df['日期'])
 
-# ★ 關鍵步驟：確保這 4 年的資料是按照時間「由舊到新」嚴格排序 ★
+# ★ 關鍵步驟：確保資料是按照時間「由舊到新」嚴格排序 ★
 df = df.sort_values('日期').reset_index(drop=True)
 
 # ====================
@@ -100,13 +100,54 @@ df['RSI14'] = 100 - (100 / (1 + rs))
 # 5日波動率：過去 5 天日報酬率標準差
 df['5日波動率'] = df['日報酬率'].rolling(window=5).std()
 
-# 4. 重新命名欄位
+# ==========================================
+# 新增：進階技術指標與市場特徵 (XGBoost 優化版)
+# ==========================================
+
+# 中長期趨勢 (MA20 月線)
+df['MA20'] = df['收盤價'].rolling(window=20).mean()
+df['MA20乖離率'] = (df['收盤價'] - df['MA20']) / df['MA20']
+df['均線多空'] = (df['MA5'] > df['MA20']).astype(int)  # 1為多頭，0為空頭
+
+# MACD 指標 (12日與26日 EMA)
+exp1 = df['收盤價'].ewm(span=12, adjust=False).mean()
+exp2 = df['收盤價'].ewm(span=26, adjust=False).mean()
+df['MACD'] = exp1 - exp2
+df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+df['MACD柱狀圖'] = df['MACD'] - df['MACD_Signal']  # 衡量動能增減
+
+# 布林通道 %B (Bollinger Bands)
+df['MA20_std'] = df['收盤價'].rolling(window=20).std()
+df['BB_Upper'] = df['MA20'] + (df['MA20_std'] * 2)
+df['BB_Lower'] = df['MA20'] - (df['MA20_std'] * 2)
+df['布林位置'] = (df['收盤價'] - df['BB_Lower']) / (df['BB_Upper'] - df['BB_Lower'])
+
+# 跳空缺口 (今日開盤價相對於昨日收盤價的跳空幅度)
+df['跳空幅度'] = (df['開盤價'] - df['前1日收盤價']) / df['前1日收盤價']
+
+# 星期幾特徵 (0=週一, ..., 4=週五)
+df['day_of_week'] = df['日期'].dt.dayofweek
+
+# 將星期幾進行獨熱編碼 (One-Hot Encoding)，避免 XGBoost 將其視為連續數值
+df = pd.get_dummies(df, columns=['day_of_week'], prefix='day')
+
+# 確保產生出來的 True/False 轉換為 1/0 的整數格式
+for col in [f'day_{i}' for i in range(5)]:
+    if col in df.columns:
+        df[col] = df[col].astype(int)
+
+# 4. 重新命名欄位 (加上新特徵)
 column_mapping = {
     '日期': 'date',
     '日報酬率': 'daily_return',
     '前1日日報酬率': 'daily_return_lag1',
     '前2日日報酬率': 'daily_return_lag2',
     'MA5乖離率': 'ma5_bias',
+    'MA20乖離率': 'ma20_bias',
+    '均線多空': 'ma_trend',
+    'MACD柱狀圖': 'macd_hist',
+    '布林位置': 'bb_position',
+    '跳空幅度': 'gap_pct',
     'K線實體': 'kline_body',
     '振幅': 'amplitude',
     '成交量變化率': 'vol_change',
@@ -116,18 +157,25 @@ column_mapping = {
 }
 df = df.rename(columns=column_mapping)
 
-# 5. 挑選最終特徵 (★ 丟棄原本的開高低收等絕對數值 ★)
+# 5. 挑選最終特徵 (動態將 day_0 到 day_4 一併加入)
 features_to_keep = [
     'date', 'daily_return', 'daily_return_lag1', 'daily_return_lag2',
-    'ma5_bias', 'kline_body', 'amplitude', 'vol_change',
-    'rsi_14', 'volatility_5d', 'target'
+    'ma5_bias', 'ma20_bias', 'ma_trend', 'macd_hist', 'bb_position', 'gap_pct', 
+    'kline_body', 'amplitude', 'vol_change', 'rsi_14', 'volatility_5d', 'target'
 ]
+day_cols = [col for col in df.columns if col.startswith('day_')]
+features_to_keep.extend(day_cols)
+
+# 移除因為計算均線與落後指標產生的空值 NaN (大約會捨去最前面的 26 天)
 df_final = df[features_to_keep].dropna().copy()
 
-print("資料準備完畢！")
+print("\n資料準備完畢！")
 print(f"最終可用於訓練的資料筆數：{len(df_final)} 筆")
-print("\n前五筆資料檢查：")
-print(df_final.head())
+
+# 觀察漲跌不平衡比例 (給下階段 XGBoost 設定 scale_pos_weight 參考)
+print("\n漲跌天數分佈 (目標標籤)：")
+print(df_final['target'].value_counts(normalize=True))
 
 # 存檔
 df_final.to_csv('0050_cleaned_data_5years.csv', index=False, encoding='utf-8-sig')
+print("\n檔案已成功儲存為 0050_cleaned_data_5years.csv")
