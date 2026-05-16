@@ -3,7 +3,7 @@ __pycache__/
 *.csv
 .ipynb_checkpoints/
 visualizations/
-下半結果/
+secondresult/
 
 # Visualization outputs (charts/figures)
 visualizations/**/*.png
